@@ -3,19 +3,39 @@
 
 using namespace std;
 
-bool cancelled = false;
-bool isGameEnding = false;
-string winner;
+bool newRound = false;
+int player_score[2] = {0, 0};
+
+int random_vector = GetRandomValue(4, 6);
+
+const int SCREEN_WIDTH = 800;
+const int SCREEN_HEIGHT = 600;
+
+int ball_data[5] = {SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 5, 5, 15};
+int left_paddle_data[4] = {
+    10,
+    SCREEN_HEIGHT / 2 - 60,
+    20,
+    120};
+int right_paddle_data[4] = {
+    SCREEN_WIDTH - 35,
+    SCREEN_HEIGHT / 2 - 60,
+    20,
+    120};
 
 class Game
 {
 
 public:
-    void Ending()
+    void IncreaseScore(int player)
     {
-        string text = winner + " wins!";
-        DrawText(text.c_str(), GetScreenWidth() / 2 - 100, GetScreenHeight() / 2, 20, WHITE);
-        DrawText("Press ESC to exit", GetScreenWidth() / 2 - 100, GetScreenHeight() / 2 + 30, 20, WHITE);
+        player_score[player]++;
+    }
+
+    void DrawScore()
+    {
+        DrawText(TextFormat("%i", player_score[0]), SCREEN_WIDTH / 2 - SCREEN_WIDTH / 4, 15, 40, WHITE);
+        DrawText(TextFormat("%i", player_score[1]), SCREEN_WIDTH / 2 + SCREEN_WIDTH / 4, 15, 40, WHITE);
     }
 };
 
@@ -29,6 +49,22 @@ public:
     int speed_y;
     int radius;
 
+    Ball()
+    {
+
+        random_vector = GetRandomValue(4, 10);
+
+        int ball_vector[2] = {
+            (GetRandomValue(0, 1) == 0) ? -random_vector : random_vector,
+            (GetRandomValue(0, 1) == 0) ? -random_vector : random_vector};
+
+        x = ball_data[0];
+        y = ball_data[1];
+        speed_x = ball_vector[0];
+        speed_y = ball_vector[1];
+        radius = ball_data[4];
+    }
+
     void Draw()
     {
         DrawCircle(x, y, radius, WHITE);
@@ -36,35 +72,28 @@ public:
 
     void Update()
     {
-        if (cancelled)
-        {
-            return;
-        }
-
         x += speed_x;
         y += speed_y;
     }
 
-    void Bounce()
+    void Bounce(Game &game)
     {
-        if (x + radius >= GetScreenWidth() || x - radius <= 0)
+        if (x + radius >= SCREEN_WIDTH || x - radius <= 0)
         {
             // Game Over
-            if (x + radius >= GetScreenWidth())
+            if (x + radius >= SCREEN_WIDTH)
             {
-                winner = "Left player";
-                cancelled = true;
-                isGameEnding = true;
+                game.IncreaseScore(0);
+                newRound = true;
             }
             else
             {
-                winner = "Right player";
-                cancelled = true;
-                isGameEnding = true;
+                game.IncreaseScore(1);
+                newRound = true;
             }
         }
 
-        if (y + radius >= GetScreenHeight() || y - radius <= 0)
+        if (y + radius >= SCREEN_HEIGHT || y - radius <= 0)
         {
             speed_y *= -1; // Change to -1 for full bounce
             // *=   <=>   ball_speed_x = ball_speed_x * -1;
@@ -81,6 +110,24 @@ public:
     int width;
     int height;
 
+    Paddle(int left_or_right)
+    {
+        if (left_or_right == 0)
+        {
+            x = left_paddle_data[0];
+            y = left_paddle_data[1];
+            width = left_paddle_data[2];
+            height = left_paddle_data[3];
+        }
+        else
+        {
+            x = right_paddle_data[0];
+            y = right_paddle_data[1];
+            width = right_paddle_data[2];
+            height = right_paddle_data[3];
+        }
+    }
+
     void Draw()
     {
         DrawRectangle(x, y, width, height, WHITE);
@@ -88,70 +135,77 @@ public:
 
     void Update(KeyboardKey up, KeyboardKey down)
     {
-        if (cancelled)
-        {
-            return;
-        }
-
         if (IsKeyDown(up) && y > 10)
         {
-            y -= 5;
+            y -= random_vector;
         }
         if (IsKeyDown(down) && y < GetScreenHeight() - height - 10)
         {
-            y += 5;
+            y += random_vector;
         }
     }
 
     void Colision(Ball &ball)
     {
+
         if (ball.x + ball.radius >= x && ball.x - ball.radius <= x + width)
         {
             if (ball.y + ball.radius >= y && ball.y - ball.radius <= y + height)
             {
                 ball.speed_x *= -1;
+
+                float topZone = y + height * 0.05f;
+                float bottomZone = y + height * 0.95f;
+
+                if (ball.y < topZone)
+                {
+                    // 5% haut
+                    ball.speed_y = -abs(random_vector);
+                }
+                else if (ball.y > bottomZone)
+                {
+                    // 5% bas
+                    ball.speed_y = abs(random_vector);
+                }
+                else
+                {
+                    // 90% milieu
+                    // Optionnel : garder la même vitesse ou la réduire
+                    // ball.speed_y = 0; // ou rien
+                }
             }
         }
     }
 };
 
-Ball ball;
-Paddle left_paddle;
-Paddle right_paddle;
 Game game;
 
 int main()
 {
-
-    const int SCREEN_WIDTH = 800;
-    const int SCREEN_HEIGHT = 600;
 
     cout << "Hello World" << endl;
 
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "My first RAYLIB program!");
     SetTargetFPS(60);
 
-    ball.x = 100;
-    ball.y = 100;
-    ball.speed_x = 5;
-    ball.speed_y = 5;
-    ball.radius = 15;
-
-    left_paddle.x = 10;
-    left_paddle.y = SCREEN_HEIGHT / 2 - 60;
-    left_paddle.width = 20;
-    left_paddle.height = 120;
-
-    right_paddle.x = SCREEN_WIDTH - 35;
-    right_paddle.y = SCREEN_HEIGHT / 2 - 60;
-    right_paddle.width = 20;
-    right_paddle.height = 120;
+    Ball ball = Ball();
+    Paddle left_paddle = Paddle(0);
+    Paddle right_paddle = Paddle(1);
 
     while (WindowShouldClose() == false)
     {
 
+        if (newRound)
+        {
+            ball = Ball();
+            left_paddle = Paddle(0);
+            right_paddle = Paddle(1);
+
+            newRound = false;
+        }
+
         ball.Update();
-        ball.Bounce();
+        ball.Bounce(game);
 
         left_paddle.Update(KEY_W, KEY_S);
         right_paddle.Update(KEY_UP, KEY_DOWN);
@@ -168,10 +222,7 @@ int main()
         left_paddle.Draw();
         right_paddle.Draw();
 
-        if (isGameEnding)
-        {
-            game.Ending();
-        }
+        game.DrawScore();
 
         EndDrawing();
 
