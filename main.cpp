@@ -6,7 +6,7 @@ using namespace std;
 bool newRound = false;
 int player_score[2] = {0, 0};
 
-int random_vector = GetRandomValue(4, 6);
+int random_vector = GetRandomValue(4, 5);
 
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 600;
@@ -52,7 +52,7 @@ public:
     Ball()
     {
 
-        random_vector = GetRandomValue(4, 10);
+        random_vector = GetRandomValue(4, 5);
 
         int ball_vector[2] = {
             (GetRandomValue(0, 1) == 0) ? -random_vector : random_vector,
@@ -178,6 +178,42 @@ public:
     }
 };
 
+class AI : public Paddle
+{
+
+public:
+    int random_decrapted_event = GetRandomValue(0, 3);
+
+    AI(int left_or_right) : Paddle(left_or_right)
+    {
+    }
+
+    void Update(Ball &ball)
+    {
+
+        if (random_decrapted_event == 0)
+        {
+            if (ball.y < y + height / 2 && y > 10)
+            {
+                y += random_vector - 1;
+            }
+            if (ball.y > y + height / 2 && y < GetScreenHeight() - height - 10)
+            {
+                y -= random_vector - 1;
+            }
+        }
+
+        if (ball.y < y + height / 2 && y > 10)
+        {
+            y -= random_vector;
+        }
+        if (ball.y > y + height / 2 && y < GetScreenHeight() - height - 10)
+        {
+            y += random_vector;
+        }
+    }
+};
+
 Game game;
 
 int main()
@@ -190,7 +226,7 @@ int main()
 
     Ball ball = Ball();
     Paddle left_paddle = Paddle(0);
-    Paddle right_paddle = Paddle(1);
+    AI ai_paddle = AI(1);
 
     while (WindowShouldClose() == false)
     {
@@ -199,7 +235,7 @@ int main()
         {
             ball = Ball();
             left_paddle = Paddle(0);
-            right_paddle = Paddle(1);
+            ai_paddle = AI(1);
 
             newRound = false;
         }
@@ -208,10 +244,10 @@ int main()
         ball.Bounce(game);
 
         left_paddle.Update(KEY_W, KEY_S);
-        right_paddle.Update(KEY_UP, KEY_DOWN);
+        ai_paddle.Update(ball);
 
         left_paddle.Colision(ball);
-        right_paddle.Colision(ball);
+        ai_paddle.Colision(ball);
 
         BeginDrawing();
         ClearBackground(BLACK);
@@ -220,7 +256,7 @@ int main()
 
         ball.Draw();
         left_paddle.Draw();
-        right_paddle.Draw();
+        ai_paddle.Draw();
 
         game.DrawScore();
 
